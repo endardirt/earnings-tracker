@@ -25,7 +25,7 @@
 
     .app {
       width: 100%;
-      max-width: 520px;
+      max-width: 620px;
       background: #111827;
       border-radius: 22px;
       padding: 30px;
@@ -94,6 +94,11 @@
       color: white;
     }
 
+    .goal-btn {
+      background: #8b5cf6;
+      color: white;
+    }
+
     .settings {
       display: flex;
       flex-direction: column;
@@ -118,6 +123,68 @@
       font-size: 1rem;
       background: #334155;
       color: white;
+    }
+
+    .adjust-buttons {
+      display: flex;
+      gap: 10px;
+    }
+
+    .goal-card {
+      margin-bottom: 25px;
+      padding: 20px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .goal-title {
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+
+    .goal-progress {
+      margin-bottom: 15px;
+    }
+
+    .progress-bar {
+      height: 14px;
+      background: #334155;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg,#22c55e,#4ade80);
+      transition: width 0.3s ease;
+    }
+
+    .goal-stats {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .goal-stat {
+      background: rgba(255,255,255,0.05);
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .goal-label {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-bottom: 4px;
+    }
+
+    .goal-value {
+      font-size: 1.1rem;
+      font-weight: bold;
     }
 
     .small {
@@ -155,10 +222,46 @@
   <div class="money-display">
     <div>Current Earnings</div>
     <div class="money" id="money">$0.00</div>
+    <div class="status" id="status">Not clocked in</div>
+  </div>
 
-    <div class="status" id="status">
-      Not clocked in
+  <!-- MOVED HERE -->
+  <div class="goal-card">
+
+    <div class="goal-title">🎯 Savings Goal</div>
+
+    <div class="goal-progress">
+      <div id="goalProgressText">$0 / $0</div>
+
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
     </div>
+
+    <div class="goal-stats">
+
+      <div class="goal-stat">
+        <div class="goal-label">Amount Remaining</div>
+        <div class="goal-value" id="remainingAmount">$0.00</div>
+      </div>
+
+      <div class="goal-stat">
+        <div class="goal-label">Work Time Remaining</div>
+        <div class="goal-value" id="remainingTime">0h 0m</div>
+      </div>
+
+      <div class="goal-stat">
+        <div class="goal-label">8-Hour Work Days Remaining</div>
+        <div class="goal-value" id="remainingDays">0 days</div>
+      </div>
+
+      <div class="goal-stat">
+        <div class="goal-label">Goal Completion</div>
+        <div class="goal-value" id="goalPercent">0%</div>
+      </div>
+
+    </div>
+
   </div>
 
   <div class="controls">
@@ -180,9 +283,26 @@
     </div>
 
     <div class="field">
-      <button class="reset" id="applyAmountBtn">
-        Set Amount
-      </button>
+      <button class="reset" id="applyAmountBtn">Set Amount</button>
+    </div>
+
+    <div class="field">
+      <label>Add / Remove Amount ($)</label>
+      <input type="number" id="adjustAmount" value="10" step="0.01">
+    </div>
+
+    <div class="adjust-buttons">
+      <button class="clock-in" id="addMoneyBtn">+ Add Money</button>
+      <button class="clock-out" id="removeMoneyBtn">- Remove Money</button>
+    </div>
+
+    <div class="field">
+      <label>Savings Goal ($)</label>
+      <input type="number" id="goalAmount" value="1000" step="0.01">
+    </div>
+
+    <div class="field">
+      <button class="goal-btn" id="setGoalBtn">Save Goal</button>
     </div>
 
   </div>
@@ -195,226 +315,171 @@
 </div>
 
 <script>
-  // -----------------------------
-  // STORAGE KEY
-  // -----------------------------
-  const STORAGE_KEY = "earningsTrackerData";
 
-  // -----------------------------
-  // DEFAULT DATA
-  // -----------------------------
-  let data = {
-    totalMoney: 0,
-    hourlyWage: 20,
-    clockedIn: false,
-    clockInStart: null,
-    decimals: 2
-  };
+const STORAGE_KEY = "earningsTrackerData";
 
-  // -----------------------------
-  // LOAD SAVED DATA
-  // -----------------------------
-  const saved = localStorage.getItem(STORAGE_KEY);
+let data = {
+  totalMoney: 0,
+  hourlyWage: 20,
+  clockedIn: false,
+  clockInStart: null,
+  decimals: 2,
+  goalAmount: 1000
+};
 
-  if (saved) {
-    data = JSON.parse(saved);
-  }
+const saved = localStorage.getItem(STORAGE_KEY);
 
-  // fallback if old save exists
-  if (data.decimals === undefined) {
-    data.decimals = 2;
-  }
+if (saved) data = JSON.parse(saved);
 
-  // -----------------------------
-  // ELEMENTS
-  // -----------------------------
-  const moneyEl = document.getElementById("money");
-  const statusEl = document.getElementById("status");
+if (data.decimals === undefined) data.decimals = 2;
+if (data.goalAmount === undefined) data.goalAmount = 1000;
 
-  const wageInput = document.getElementById("hourlyWage");
-  const setAmountInput = document.getElementById("setAmount");
+const moneyEl = document.getElementById("money");
+const statusEl = document.getElementById("status");
 
-  wageInput.value = data.hourlyWage;
-  setAmountInput.value = data.totalMoney.toFixed(2);
+const wageInput = document.getElementById("hourlyWage");
+const setAmountInput = document.getElementById("setAmount");
+const goalInput = document.getElementById("goalAmount");
 
-  // -----------------------------
-  // CREATE DECIMAL INPUT
-  // -----------------------------
-  const settings = document.querySelector(".settings");
+wageInput.value = data.hourlyWage;
+setAmountInput.value = data.totalMoney.toFixed(2);
+goalInput.value = data.goalAmount;
 
-  const decimalField = document.createElement("div");
-  decimalField.className = "field";
+const settings = document.querySelector(".settings");
 
-  decimalField.innerHTML = `
-    <label>Visible Decimal Places</label>
-    <input
-      type="number"
-      id="decimalPlaces"
-      min="0"
-      max="10"
-      value="${data.decimals}"
-    >
-  `;
+const decimalField = document.createElement("div");
+decimalField.className = "field";
+decimalField.innerHTML = `
+<label>Visible Decimal Places</label>
+<input type="number" id="decimalPlaces" min="0" max="10" value="${data.decimals}">
+`;
+settings.appendChild(decimalField);
 
-  settings.appendChild(decimalField);
+const decimalInput = document.getElementById("decimalPlaces");
 
-  const decimalInput = document.getElementById("decimalPlaces");
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
 
-  // -----------------------------
-  // SAVE FUNCTION
-  // -----------------------------
-  function saveData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }
+function getCurrentMoney() {
+  if (!data.clockedIn || !data.clockInStart) return data.totalMoney;
+  const elapsedMs = Date.now() - data.clockInStart;
+  return data.totalMoney + (elapsedMs * (data.hourlyWage / 3600000));
+}
 
-  // -----------------------------
-  // LIVE MONEY CALCULATION
-  // -----------------------------
-  function getCurrentMoney() {
+function updateGoalDisplay(currentMoney) {
 
-    if (!data.clockedIn || !data.clockInStart) {
-      return data.totalMoney;
-    }
+  const goal = data.goalAmount;
+  const remaining = Math.max(0, goal - currentMoney);
 
-    const now = Date.now();
-    const elapsedMs = now - data.clockInStart;
+  const percent = goal > 0 ? Math.min(100, (currentMoney / goal) * 100) : 0;
 
-    const earningsPerMs = data.hourlyWage / 3600000;
+  const hoursRemaining = data.hourlyWage > 0 ? remaining / data.hourlyWage : 0;
+  const h = Math.floor(hoursRemaining);
+  const m = Math.round((hoursRemaining - h) * 60);
+  const days = Math.ceil(hoursRemaining / 8);
 
-    return data.totalMoney + (elapsedMs * earningsPerMs);
-  }
+  document.getElementById("goalProgressText").textContent =
+    `$${currentMoney.toFixed(2)} / $${goal.toFixed(2)}`;
 
-  // -----------------------------
-  // UPDATE DISPLAY
-  // -----------------------------
-  function updateDisplay() {
+  document.getElementById("remainingAmount").textContent =
+    `$${remaining.toFixed(2)}`;
 
-    const currentMoney = getCurrentMoney();
+  document.getElementById("remainingTime").textContent =
+    remaining <= 0 ? "Goal Reached 🎉" : `${h}h ${m}m`;
 
-    moneyEl.textContent =
-      "$" + currentMoney.toFixed(data.decimals);
+  document.getElementById("remainingDays").textContent =
+    remaining <= 0 ? "0 days" : `${days} days`;
 
-    if (data.clockedIn) {
-      statusEl.innerHTML =
-        '<span class="live-dot"></span>Clocked In';
-    } else {
-      statusEl.innerHTML = "Not clocked in";
-    }
-  }
+  document.getElementById("goalPercent").textContent =
+    percent.toFixed(1) + "%";
 
-  // -----------------------------
-  // LIVE REFRESH
-  // -----------------------------
-  setInterval(updateDisplay, 50);
+  document.getElementById("progressFill").style.width =
+    percent + "%";
+}
 
-  // -----------------------------
-  // CLOCK IN
-  // -----------------------------
-  document.getElementById("clockInBtn").addEventListener("click", () => {
+function updateDisplay() {
 
-    if (!data.clockedIn) {
+  const currentMoney = getCurrentMoney();
 
-      data.clockedIn = true;
-      data.clockInStart = Date.now();
+  moneyEl.textContent = "$" + currentMoney.toFixed(data.decimals);
 
-      saveData();
-      updateDisplay();
-    }
-  });
+  statusEl.innerHTML = data.clockedIn
+    ? '<span class="live-dot"></span>Clocked In'
+    : "Not clocked in";
 
-  // -----------------------------
-  // CLOCK OUT
-  // -----------------------------
-  document.getElementById("clockOutBtn").addEventListener("click", () => {
+  updateGoalDisplay(currentMoney);
+}
 
-    if (data.clockedIn) {
+setInterval(updateDisplay, 50);
 
-      data.totalMoney = getCurrentMoney();
-
-      data.clockedIn = false;
-      data.clockInStart = null;
-
-      saveData();
-      updateDisplay();
-    }
-  });
-
-  // -----------------------------
-  // CLEAR
-  // -----------------------------
-  document.getElementById("resetBtn").addEventListener("click", () => {
-
-    data.totalMoney = 0;
-
-    if (data.clockedIn) {
-      data.clockInStart = Date.now();
-    }
-
-    setAmountInput.value = 0;
-
+document.getElementById("clockInBtn").onclick = () => {
+  if (!data.clockedIn) {
+    data.clockedIn = true;
+    data.clockInStart = Date.now();
     saveData();
-    updateDisplay();
-  });
+  }
+};
 
-  // -----------------------------
-  // SET AMOUNT
-  // -----------------------------
-  document.getElementById("applyAmountBtn").addEventListener("click", () => {
-
-    data.totalMoney = parseFloat(setAmountInput.value) || 0;
-
-    if (data.clockedIn) {
-      data.clockInStart = Date.now();
-    }
-
-    saveData();
-    updateDisplay();
-  });
-
-  // -----------------------------
-  // HOURLY WAGE CHANGE
-  // -----------------------------
-  wageInput.addEventListener("input", () => {
-
+document.getElementById("clockOutBtn").onclick = () => {
+  if (data.clockedIn) {
     data.totalMoney = getCurrentMoney();
-
-    data.hourlyWage =
-      parseFloat(wageInput.value) || 0;
-
-    if (data.clockedIn) {
-      data.clockInStart = Date.now();
-    }
-
+    data.clockedIn = false;
+    data.clockInStart = null;
     saveData();
-    updateDisplay();
-  });
+  }
+};
 
-  // -----------------------------
-  // DECIMAL CHANGE
-  // -----------------------------
-  decimalInput.addEventListener("input", () => {
+document.getElementById("resetBtn").onclick = () => {
+  data.totalMoney = 0;
+  if (data.clockedIn) data.clockInStart = Date.now();
+  setAmountInput.value = 0;
+  saveData();
+};
 
-    let value = parseInt(decimalInput.value);
+document.getElementById("applyAmountBtn").onclick = () => {
+  data.totalMoney = parseFloat(setAmountInput.value) || 0;
+  if (data.clockedIn) data.clockInStart = Date.now();
+  saveData();
+};
 
-    if (isNaN(value)) value = 2;
+document.getElementById("addMoneyBtn").onclick = () => {
+  const amt = parseFloat(document.getElementById("adjustAmount").value) || 0;
+  data.totalMoney = getCurrentMoney() + amt;
+  if (data.clockedIn) data.clockInStart = Date.now();
+  setAmountInput.value = data.totalMoney.toFixed(2);
+  saveData();
+};
 
-    value = Math.max(0, Math.min(10, value));
+document.getElementById("removeMoneyBtn").onclick = () => {
+  const amt = parseFloat(document.getElementById("adjustAmount").value) || 0;
+  data.totalMoney = Math.max(0, getCurrentMoney() - amt);
+  if (data.clockedIn) data.clockInStart = Date.now();
+  setAmountInput.value = data.totalMoney.toFixed(2);
+  saveData();
+};
 
-    data.decimals = value;
+document.getElementById("setGoalBtn").onclick = () => {
+  data.goalAmount = parseFloat(goalInput.value) || 0;
+  saveData();
+};
 
-    saveData();
-    updateDisplay();
-  });
+wageInput.oninput = () => {
+  data.totalMoney = getCurrentMoney();
+  data.hourlyWage = parseFloat(wageInput.value) || 0;
+  if (data.clockedIn) data.clockInStart = Date.now();
+  saveData();
+};
 
-  // -----------------------------
-  // INITIAL DISPLAY
-  // -----------------------------
-  updateDisplay();
+decimalInput.oninput = () => {
+  let v = parseInt(decimalInput.value);
+  if (isNaN(v)) v = 2;
+  data.decimals = Math.max(0, Math.min(10, v));
+  saveData();
+};
 
-  // -----------------------------
-  // AUTO SAVE
-  // -----------------------------
-  setInterval(saveData, 5000);
+updateDisplay();
+setInterval(saveData, 5000);
 
 </script>
 
